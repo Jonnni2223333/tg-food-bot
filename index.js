@@ -1,27 +1,28 @@
+// index.js — рабочая версия для простого запуска (без ошибок синтаксиса)
 const { Telegraf, Markup } = require('telegraf');
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
 
-const BOT_TOKEN = process.env.BOT_TOKEN;
-if (!BOT_TOKEN) {
-  console.error('ERROR: set BOT_TOKEN env var');
-  process.exit(1);
-}
-
+const BOT_TOKEN = process.env.BOT_TOKEN || ''; // если пустой — бот не будет запускаться
 const bot = new Telegraf(BOT_TOKEN);
 
-// helper to read catalog
+// helper: читаем catalog.json
 function getCatalog(){
-  const p = path.join(__dirname,'catalog.json');
-  const raw = fs.readFileSync(p,'utf8');
-  return JSON.parse(raw);
+  try {
+    const p = path.join(__dirname, 'catalog.json');
+    const raw = fs.readFileSync(p, 'utf8');
+    return JSON.parse(raw);
+  } catch (e) {
+    return { meta: { name: 'FastEats', logoUrl: '' }, items: [] };
+  }
 }
 
 // /start
 bot.start(async (ctx) => {
   const catalog = getCatalog();
   const name = (catalog.meta && catalog.meta.name) || 'FastEats';
+  // используем шаблонные строки (backticks) — правильно
   try {
     if (catalog.meta && catalog.meta.logoUrl) {
       await ctx.replyWithPhoto(catalog.meta.logoUrl, {
@@ -30,66 +31,46 @@ bot.start(async (ctx) => {
       return;
     }
   } catch (e) {
-    console.error('replyWithPhoto failed', e);
+    console.error('replyWithPhoto error:', e);
+    // если не получилось фото — отправим текст
   }
   await ctx.reply(Привет! Это ${name}. Команды:\n/menu — меню\n/order — оформление);
 });
 
-// /menu - текст
+// /menu
 bot.command('menu', (ctx) => {
   const catalog = getCatalog();
-  const lines = catalog.items.map(i=>${i.name} — $${i.price}\n${i.desc}).join('\n\n');
-  return ctx.reply(lines);
+  if (!catalog.items || catalog.items.length === 0) return ctx.reply('Меню пусто');
+  const text = catalog.items.map(i => ${i.name} — $${i.price}\n${i.desc || ''}).join('\n\n');
+  return ctx.reply(text);
 });
 
-// /order - открывает веб-приложение (web app)
-bot.command('order', async (ctx) => {
-  const webAppUrl = process.env.WEBAPP_URL  (process.env.RAILWAY_STATIC_URL  '');
-  // если WEBAPP_URL не задан — пробуем относительный путь
-  const url = webAppUrl || ${process.env.PROJECT_URL || ''};
-  // создаём кнопку Web App — если url пустой, даём простой текст
-  if (!url) {
-    return ctx.reply('Оформление доступно по ссылке на сайт (админ пока не указал WEBAPP_URL).');
-  }
+// /order
+bot.command('order', (ctx) => {
+  const webAppUrl = process.env.WEBAPP_URL || (process.env.VERCEL_URL ? https://${process.env.VERCEL_URL} : '');
+  if (!webAppUrl) return ctx.reply('Оформление временно недоступно (админ не указал WEBAPP_URL).');
   return ctx.reply('Открыть оформление:', Markup.inlineKeyboard([
-    Markup.button.webApp('Оформить заказ', url)
+    Markup.button.webApp('Оформить заказ', webAppUrl)
   ]));
 });
 
-// Admin command to update meta quickly (only admin id)
-bot.command('setmeta', async (ctx) => {
-  const adminId = process.env.ADMIN_ID;
-  if (adminId && String(ctx.from.id) !== String(adminId)) return ctx.reply('Нет доступа');
-  const args = ctx.message.text.split(' ').slice(1).join(' ');
-  if (!args) return ctx.reply('Использование: /setmeta {"name":"...","logoUrl":"...","themeColor":"#..."}');
-  try {
-    const p = path.join(__dirname,'catalog.json');
-    const data = JSON.parse(fs.readFileSync(p,'utf8'));
-    const metaUpdate = JSON.parse(args);
-    data.meta = {...data.meta, ...metaUpdate};
-    fs.writeFileSync(p, JSON.stringify(data,null,2));
-    return ctx.reply('Meta обновлена');
-  } catch (e) {
-    return ctx.reply('Ошибка: ' + e.message);
-  }
-});
-
-// express app serves static front (public/)
+// express static (если ты используешь этот файл для long-run сервера)
 const app = express();
-app.use(express.json());
-app.use(express.static(path.join(__dirname,'public')));
+app.use(express.static(path.join(__dirname, 'public')));
+app.get('/health', (req, res) => res.send('ok'));
 
-// health
-app.get('/health', (req,res)=>res.send('ok'));
-
-// optional webhook endpoint (if later you set webhook)
-app.post('/webhook', (req,res)=>{
-  bot.handleUpdate(req.body);
-  res.sendStatus(200);
-});
-
+// start server
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, ()=> {
-  console.log('HTTP server on', PORT);
-  bot.launch().then(()=>console.log('Bot launched'));
+app.listen(PORT, async () => {
+  console.log('HTTP server on port', PORT);
+  if (BOT_TOKEN) {
+    try {
+      await bot.launch();
+      console.log('Bot launched (polling)');
+    } catch (e) {
+      console.error('bot.launch error', e);
+    }
+  } else {
+    console.warn('BOT_TOKEN not set — bot not launched');
+  }
 });
