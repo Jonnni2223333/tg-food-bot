@@ -21,18 +21,18 @@ function getCatalog(){
 // /start
 bot.start(async (ctx) => {
   const catalog = getCatalog();
-  // try to send logo (if exists)
+  const name = (catalog.meta && catalog.meta.name) || 'FastEats';
   try {
     if (catalog.meta && catalog.meta.logoUrl) {
-  await ctx.replyWithPhoto(catalog.meta.logoUrl, {
-  caption: 'Привет! Это ' + (catalog.meta.name || '') + '. Команды:\n/menu — меню\n/order — оформление'
-});
+      await ctx.replyWithPhoto(catalog.meta.logoUrl, {
+        caption: Привет! Это ${name}. Команды:\n/menu — меню\n/order — оформление
+      });
       return;
     }
   } catch (e) {
-    // fallback
+    console.error('replyWithPhoto failed', e);
   }
-  await ctx.reply(Привет! Это ${catalog.meta.name}. Команды:\n/menu — меню\n/order — оформление);
+  await ctx.reply(Привет! Это ${name}. Команды:\n/menu — меню\n/order — оформление);
 });
 
 // /menu - текст
