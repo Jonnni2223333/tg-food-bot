@@ -1,0 +1,11 @@
+{
+  "meta": {
+    "name": "FastEats",
+    "logoUrl": "https://via.placeholder.com/300x100.png?text=FastEats+Logo",
+    "themeColor": "#FF6B00"
+  },
+  "items": [
+    {"id":"p1","name":"Маргарита","price":8.99,"desc":"Классическая пицца","image":""},
+    {"id":"p2","name":"Бургер с курицей","price":6.5,"desc":"Сочная куриная котлета","image":""}
+  ]
+}
