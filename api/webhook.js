@@ -1,41 +1,44 @@
-// api/webhook.js — для Vercel serverless
+// api/webhook.js
 const { Telegraf } = require('telegraf');
 const fs = require('fs');
 const path = require('path');
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 if (!BOT_TOKEN) {
-  console.error('No BOT_TOKEN set');
+  console.error('Missing BOT_TOKEN env var');
 }
 
+// create bot instance
 const bot = new Telegraf(BOT_TOKEN);
 
-// helper to read catalog (same catalog.json in repo root)
+// helper to read catalog.json from repo root
 function getCatalog(){
   try {
-    const p = path.join(process.cwd(),'catalog.json');
-    const raw = fs.readFileSync(p,'utf8');
+    const p = path.join(process.cwd(), 'catalog.json');
+    const raw = fs.readFileSync(p, 'utf8');
     return JSON.parse(raw);
   } catch (e) {
-    return { meta:{name:'FastEats'}, items:[] };
+    return { meta: { name: 'FastEats' }, items: [] };
   }
 }
 
-// Minimal handlers (start/menu/order)
+// basic commands
 bot.start((ctx) => {
   const catalog = getCatalog();
-  ctx.reply(Привет! Это ${catalog.meta.name}. Команды: /menu /order);
+  const name = (catalog.meta && catalog.meta.name) || 'FastEats';
+  return ctx.reply(Привет! Это ${name}. Команды: /menu /order);
 });
 
 bot.command('menu', (ctx) => {
   const catalog = getCatalog();
-  const lines = catalog.items.map(i=>${i.name} — $${i.price}\n${i.desc}).join('\n\n') || 'Меню пусто';
-  ctx.reply(lines);
+  if (!catalog.items || catalog.items.length === 0) return ctx.reply('Меню пусто');
+  const text = catalog.items.map(i => ${i.name} — $${i.price}\n${i.desc || ''}).join('\n\n');
+  return ctx.reply(text);
 });
 
 bot.command('order', (ctx) => {
-  const webAppUrl = process.env.WEBAPP_URL || ${process.env.VERCEL_URL ? 'https://'+process.env.VERCEL_URL : ''};
-  if (!webAppUrl) return ctx.reply('Оформление пока недоступно (админ не указал WEBAPP_URL)');
+  const webAppUrl = process.env.WEBAPP_URL || (process.env.VERCEL_URL ? https://${process.env.VERCEL_URL} : '');
+  if (!webAppUrl) return ctx.reply('Оформление временно недоступно (админ не указал WEBAPP_URL).');
   return ctx.reply('Открыть оформление:', {
     reply_markup: {
       inline_keyboard: [[{ text: 'Оформить заказ', web_app: { url: webAppUrl } }]]
@@ -45,12 +48,13 @@ bot.command('order', (ctx) => {
 
 // Vercel handler
 module.exports = async (req, res) => {
-  if (req.method === 'GET') return res.status(200).send('OK');
+  if (req.method === 'GET') return res.status(200).send('OK'); // health check
   try {
-    await bot.handleUpdate(req.body, res);
+    await bot.handleUpdate(req.body);
     return res.status(200).send('OK');
-  } catch (e) {
-    console.error('Webhook handler error', e);
-    return res.status(500).send('err');
+  } catch (err) {
+    console.error('Error handling update', err);
+    return res.status(500).send('error');
   }
-}
+};
+
