@@ -25,8 +25,8 @@ bot.start(async (ctx) => {
   try {
     if (catalog.meta && catalog.meta.logoUrl) {
       await ctx.replyWithPhoto(catalog.meta.logoUrl, {
-        caption: Привет! Это ${catalog.meta.name}. Команды:\n/menu — меню\n/order — оформление
-      });
+  caption: Привет! Это ${catalog.meta.name}. Команды:\n/menu — меню\n/order — оформление
+});
       return;
     }
   } catch (e) {
