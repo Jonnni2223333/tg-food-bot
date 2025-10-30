@@ -3,51 +3,52 @@
   <head>
     <meta charset="utf-8">
     <title>FastEats</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
     <style>
-      body { font-family: Arial, sans-serif; padding: 16px; }
-      header { display:flex; align-items:center; gap:12px; }
-      img.logo { max-width:120px; }
-      .item { border-bottom:1px solid #ddd; padding:10px 0; }
-      button { padding:6px 12px; cursor:pointer; }
+      body{font-family:Arial,Helvetica,sans-serif;padding:16px}
+      header{display:flex;align-items:center;gap:12px}
+      img.logo{max-width:120px}
+      .item{border-bottom:1px solid #eee;padding:10px 0}
+      button{padding:6px 12px;margin-top:6px;cursor:pointer}
     </style>
-  </head>
+</head>
   <body>
     <div id="app">Загрузка...</div>
-
     <script>
-      async function init(){
-        const res = await fetch('/catalog.json');
-        const catalog = await res.json();
-        const app = document.getElementById('app');
-        app.innerHTML = '';
-        const header = document.createElement('header');
-        const img = document.createElement('img'); img.className='logo'; img.src=catalog.meta.logoUrl || '';
-        header.appendChild(img);
-        const h1 = document.createElement('h1'); h1.innerText = catalog.meta.name;
-        header.appendChild(h1);
-        app.appendChild(header);
+      (async ()=>{
+        try {
+          const res = await fetch('/catalog.json');
+          const catalog = await res.json();
+          const app = document.getElementById('app');
+          app.innerHTML = '';
+          const header = document.createElement('header');
+          const img = document.createElement('img'); img.className='logo'; img.src = catalog.meta.logoUrl || '';
+          header.appendChild(img);
+          const h1 = document.createElement('h1'); h1.innerText = catalog.meta.name || 'FastEats';
+          header.appendChild(h1);
+          app.appendChild(header);
 
-        const list = document.createElement('div');
-        catalog.items.forEach(i=>{
-          const el = document.createElement('div'); el.className='item';
-          el.innerHTML = <h3>${i.name} — $${i.price}</h3><p>${i.desc}</p>;
-          const btn = document.createElement('button'); btn.innerText='Добавить в корзину';
-          btn.onclick = ()=> addToCart(i);
-          el.appendChild(btn);
-          list.appendChild(el);
-        });
-        app.appendChild(list);
-
-        const cartDiv = document.createElement('div'); cartDiv.id='cart'; cartDiv.style.marginTop='12px';
-        app.appendChild(cartDiv);
-        window.cart = [];
-        window.addToCart = (item)=>{
-          window.cart.push(item);
-          document.getElementById('cart').innerText = 'В корзине: ' + window.cart.map(x=>x.name).join(', ');
-        };
-      }
-      init().catch(e=>document.getElementById('app').innerText='Ошибка: '+e.message);
+          const list = document.createElement('div');
+          catalog.items.forEach(i=>{
+            const el = document.createElement('div'); el.className='item';
+            el.innerHTML = <h3>${i.name} — $${i.price}</h3><p>${i.desc||''}</p>;
+            const btn = document.createElement('button'); btn.innerText='Добавить в корзину';
+            btn.onclick = ()=> {
+              const c = document.getElementById('cart');
+              const arr = (window.cart = window.cart || []);
+              arr.push(i.name);
+              c.innerText = 'В корзине: ' + arr.join(', ');
+            };
+            el.appendChild(btn);
+            list.appendChild(el);
+          });
+          app.appendChild(list);
+          const cart = document.createElement('div'); cart.id='cart'; cart.style.marginTop='12px';
+          app.appendChild(cart);
+        } catch (e) {
+          document.getElementById('app').innerText = 'Ошибка загрузки каталога: ' + e.message;
+        }
+      })();
     </script>
   </body>
 </html>
